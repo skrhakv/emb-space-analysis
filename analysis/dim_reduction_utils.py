@@ -158,8 +158,7 @@ def plot_scatter1(embeddings, labels, x_idx, y_idx, emb_space, method, path=None
         plt.savefig(path)
     plt.show()
 
-SUBSET_SIZE = 308 # number of proteins in the scPDB subset so there is the same number of cryptic binding residues and regular binding residues 
-def load_balanced_cryptic_and_regular_data(emb_space, datasets, DATA_PATH):
+def load_balanced_cryptic_and_regular_data(emb_space, datasets, data_path, protein_ids=None):
     '''Balance number of cryptic residues and regular binding residues, but keep all non-binding residues.'''
     (embeddings_name, embeddings_path) = emb_space
     
@@ -167,12 +166,18 @@ def load_balanced_cryptic_and_regular_data(emb_space, datasets, DATA_PATH):
     feature_data = []
 
     for dataset in datasets:
-
-        with open(f"{DATA_PATH}/{dataset}", 'r') as f:
+        
+        BINDING_FLAG = 'CRYPTIC-BINDING' if (dataset[-9:] == 'train.txt' or dataset[-8:] == 'test.txt') else 'BINDING'
+        binding_type = 'CRYPTIC' if BINDING_FLAG == 'CRYPTIC-BINDING' else 'REGULAR'
+        with open(dataset, 'r') as f:
             reader = csv.reader(f, delimiter=';')
 
             for ii, row in enumerate(reader):
                 protein_id = row[0] + row[1]
+
+                if protein_ids is not None and f'{protein_id}_{binding_type}' not in protein_ids:
+                    continue
+
                 annotation = row[3].split(' ')
                 annotation = [int(i[1:]) for i in annotation]
                 sequence = row[4]
@@ -187,16 +192,11 @@ def load_balanced_cryptic_and_regular_data(emb_space, datasets, DATA_PATH):
                     continue
 
                 embeddings.append(embedding)
-                BINDING_FLAG = 'CRYPTIC-BINDING' if dataset == 'train.txt' else 'BINDING'
+                
                 for i in range(len(sequence)):
                     feature_data.append([sequence[i], BINDING_FLAG if i in annotation else 'NON-BINDING'])
 
-                # take only first 'SUBSET_SIZE' binding residues from scPDB
-                if ii > SUBSET_SIZE and dataset == 'scPDB_enhanced_binding_sites_translated.csv':
-                    break
-
-    print(len(feature_data), len(embeddings))
-    concatenated_embeddings_path = f"{DATA_PATH}/concatenated-embeddings/{embeddings_name}_binding_site_embeddings.npy"
+    concatenated_embeddings_path = f"{data_path}/concatenated-embeddings/{embeddings_name}_binding_site_embeddings.npy"
     embeddings = np.concatenate(embeddings, axis=0)
     np.save(concatenated_embeddings_path, embeddings) 
 
@@ -206,6 +206,6 @@ def load_balanced_cryptic_and_regular_data(emb_space, datasets, DATA_PATH):
 
     emma = Emma(feature_data=feature_data)
     emma.add_emb_space(
-        embeddings_source=f"{DATA_PATH}/concatenated-embeddings/{embeddings_name}_binding_site_embeddings.npy",
+        embeddings_source=f"{data_path}/concatenated-embeddings/{embeddings_name}_binding_site_embeddings.npy",
         emb_space_name=embeddings_name)
     return emma
