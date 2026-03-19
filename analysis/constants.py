@@ -10,5 +10,5 @@ EMB_SPACES = [("ESM2", f"{EMBEDDINGS_PATH}/esm2_t33_650M_UR50D/layer_33/chopped_
 
 CRYPTOBENCH_TRAIN_DATASET = f'{DATA_PATH}/train.txt'
 CRYPTOBENCH_TEST_DATASET = f'{DATA_PATH}/test.txt'
-SCPDB_DATASET = f'{DATA_PATH}/scPDB_enhanced_binding_sites_translated.csv'
+SCPDB_DATASET = f'{DATA_PATH}/scPDB_filtered.csv' # controled sequence similarity (< 10 % with LIGYSIS dataset)
 LIGYSIS_DATASET = f'{DATA_PATH}/ligysis_for_residue_level_evaluation.csv'
