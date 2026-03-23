@@ -19,17 +19,16 @@ N_TREES = 50
 RANDOM_SHUFFLE = False
 K = [3, 5, 10, 50, 100, 200]
 
-# emb_spaces = EMB_SPACES
 emb_spaces = EMB_SPACES
 
 datasets = [CRYPTOBENCH_TRAIN_DATASET, SCPDB_DATASET]
 
-with open(f'{DATA_PATH}/protein_ids.pkl', 'rb') as f:
-    protein_ids = pickle.load(f)
+# with open(f'{DATA_PATH}/protein_ids.pkl', 'rb') as f:
+#     protein_ids = pickle.load(f)
 
 for emb_space in emb_spaces:
     embeddings_name = emb_space[0]
-    emma = load_balanced_cryptic_and_regular_data(emb_space, datasets, DATA_PATH, protein_ids=protein_ids)
+    emma = load_balanced_cryptic_and_regular_data(emb_space, datasets, DATA_PATH, protein_ids=None)
 
     if RANDOM_SHUFFLE:
         emma.metadata["binding_site"] = np.random.permutation(emma.metadata["binding_site"].to_numpy())
