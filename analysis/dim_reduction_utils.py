@@ -5,6 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.metrics import silhouette_score
 from emmaemb.core import Emma
+from constants import EMBEDDINGS_PATH
 
 
 def prepare_data(emma, embedding_space):
@@ -196,7 +197,7 @@ def load_balanced_cryptic_and_regular_data(emb_space, datasets, data_path, prote
                 for i in range(len(sequence)):
                     feature_data.append([sequence[i], BINDING_FLAG if i in annotation else 'NON-BINDING'])
 
-    concatenated_embeddings_path = f"{data_path}/concatenated-embeddings/{embeddings_name}_binding_site_embeddings.npy"
+    concatenated_embeddings_path = f"{EMBEDDINGS_PATH}/concatenated-embeddings/{embeddings_name}_binding_site_embeddings.npy"
     embeddings = np.concatenate(embeddings, axis=0)
     np.save(concatenated_embeddings_path, embeddings) 
 
@@ -206,6 +207,157 @@ def load_balanced_cryptic_and_regular_data(emb_space, datasets, data_path, prote
 
     emma = Emma(feature_data=feature_data)
     emma.add_emb_space(
-        embeddings_source=f"{data_path}/concatenated-embeddings/{embeddings_name}_binding_site_embeddings.npy",
+        embeddings_source=f"{EMBEDDINGS_PATH}/concatenated-embeddings/{embeddings_name}_binding_site_embeddings.npy",
         emb_space_name=embeddings_name)
+    return emma
+
+def load_dataset_with_all_balanced_classes():
+    import csv
+    import os
+    import sys
+    import pandas as pd
+    import numpy as np
+    from emmaemb.core import Emma
+    sys.path.append('/home/unix/vkrhk/EmmaEmb/EmmaEmb/analysis')
+    from constants import DATA_PATH, EMBEDDINGS_PATH, IMG_OUTPUT_PATH, EMB_SPACES, CRYPTOBENCH_TRAIN_DATASET, SCPDB_DATASET
+    import random
+
+    def load_row(row):
+        protein_id = row[0] + row[1]
+        annotation = row[3].split(' ')
+        annotation = [int(i[1:]) for i in annotation]
+        sequence = row[4]
+
+        # load embeddings for this protein from all embedding spaces
+        these_embeddings = {}
+        length, have_same_length = 0, True
+        for i, (embeddings_name, embeddings_path) in enumerate(EMB_SPACES):
+            path = f"{embeddings_path}/{protein_id}.npy"
+            if not os.path.exists(path):
+                have_same_length = False
+                break
+            embedding = np.load(path)
+            these_embeddings[embeddings_name] = embedding
+            # check that all embedding spaces have the same length for this protein
+            if i == 0:
+                length = embedding.shape[0]
+            else:
+                if embedding.shape[0] != length:
+                    have_same_length = False
+                    break
+                
+        # check that all embedding spaces have the same length for this protein
+        if not have_same_length:
+            return None, None, None, None
+
+        return protein_id, annotation, sequence, these_embeddings
+
+    def shuffle_residues(length):
+        randomly_ordered_residues = list(range(length))
+        random.shuffle(randomly_ordered_residues)
+        return randomly_ordered_residues
+
+    def get_embeddings(embeddings, these_embeddings, embedding_indices):
+        for embeddings_name in these_embeddings:
+            if embeddings_name not in embeddings:
+                embeddings[embeddings_name] = []
+
+            collected_embeddings = these_embeddings[embeddings_name][embedding_indices]
+            embeddings[embeddings_name].append(collected_embeddings)
+
+    def add_protein_id(protein_id, protein_ids, type):
+        assert protein_id not in protein_ids, f"Protein {protein_id} is already added"
+        protein_ids.add(f'{protein_id}_{type}')
+
+    # collect data from the cryptobench dataset to count the number of binding residues in it
+    protein_ids = set()
+    feature_data = []
+    embeddings = {}
+    number_of_cryptic_residues = 0
+    number_of_non_binding_residues = 0
+
+    # with open(CRYPTOBENCH_TEST_DATASET, 'r') as f:
+    with open(CRYPTOBENCH_TRAIN_DATASET, 'r') as f:
+        reader = csv.reader(f, delimiter=';')
+        for row in reader:
+            protein_id, annotation, sequence, these_embeddings = load_row(row)
+            if protein_id is None:
+                continue
+            for i in annotation:
+                feature_data.append([sequence[i], 'CRYPTIC-BINDING'])
+                number_of_cryptic_residues += 1
+            # add NON-BINDING residues until we have the same number of NON-BINDING and BINDING residues in the embeddings (loop randomly the non-binding residues)
+            randomly_ordered_residues = shuffle_residues(len(sequence))
+            embedding_indices = annotation.copy()  # start with the binding residues
+            for i, residue_index in enumerate(randomly_ordered_residues):
+                if residue_index in annotation: # skip binding residues
+                    continue
+                if i > round(len(annotation) / 2):
+                    break
+                feature_data.append([sequence[residue_index], 'NON-BINDING'])
+                embedding_indices.append(i)
+                number_of_non_binding_residues += 1
+
+            add_protein_id(protein_id, protein_ids, 'CRYPTIC')
+
+            get_embeddings(embeddings, these_embeddings, embedding_indices)
+
+    # import pickle
+    # this is a list of scPDB protein ids that have seq similarity > 10 % with the LIGYSIS dataset
+    # with open('/home/unix/vkrhk/EmmaEmb/data/banned_protein_ids.pkl', 'rb') as f:
+    #     banned_protein_ids = pickle.load(f)
+
+    number_of_regular_binding_residues = 0
+
+    # with open(LIGYSIS_DATASET, 'r') as f:
+    with open(SCPDB_DATASET, 'r') as f:
+        reader = csv.reader(f, delimiter=';')
+        for row in reader:
+            if number_of_regular_binding_residues >= number_of_cryptic_residues:
+                break
+
+            protein_id = row[0] + row[1]
+            protein_id, annotation, sequence, these_embeddings = load_row(row)
+            if protein_id is None:
+                continue
+            # if protein_id in banned_protein_ids:
+            #     continue
+
+            for i in annotation:
+                feature_data.append([sequence[i], 'BINDING'])
+                number_of_regular_binding_residues += 1
+
+            randomly_ordered_residues = shuffle_residues(len(sequence))
+            embedding_indices = annotation.copy()  # start with the binding residues
+            this_number_of_non_binding_residues = 0
+            for residue_index in randomly_ordered_residues:
+
+                if residue_index in annotation: # skip binding residues
+                    continue
+                if this_number_of_non_binding_residues > round(len(annotation) / 2) or \
+                    number_of_cryptic_residues <= number_of_non_binding_residues:
+                    break
+                
+                feature_data.append([sequence[residue_index], 'NON-BINDING'])
+                embedding_indices.append(residue_index)
+                number_of_non_binding_residues += 1
+                this_number_of_non_binding_residues += 1
+
+            add_protein_id(protein_id, protein_ids, 'REGULAR')
+            get_embeddings(embeddings, these_embeddings, embedding_indices)
+
+    for embeddings_name in embeddings:
+        concatenated_embeddings_path = f"{EMBEDDINGS_PATH}/concatenated-embeddings/{embeddings_name}_binding_site_embeddings.npy"
+        embeddings[embeddings_name] = np.concatenate(embeddings[embeddings_name], axis=0)
+        np.save(concatenated_embeddings_path, embeddings[embeddings_name])  
+
+    feature_data = pd.DataFrame.from_records(feature_data, columns=["amino acid", "binding_site"])
+
+    # initiate Emma object and load embedding spaces
+    emma = Emma(feature_data=feature_data)
+    for embeddings_name, _ in EMB_SPACES:
+        emma.add_emb_space(
+            embeddings_source=f"{EMBEDDINGS_PATH}/concatenated-embeddings/{embeddings_name}_binding_site_embeddings.npy",
+            emb_space_name=embeddings_name)
+        
     return emma
