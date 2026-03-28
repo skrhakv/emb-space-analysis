@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.metrics import silhouette_score
 from emmaemb.core import Emma
-from constants import EMBEDDINGS_PATH
+from constants import EMBEDDINGS_PATH, EMB_SPACES
 
 
 def prepare_data(emma, embedding_space):
@@ -211,6 +211,36 @@ def load_balanced_cryptic_and_regular_data(emb_space, datasets, data_path, prote
         emb_space_name=embeddings_name)
     return emma
 
+def load_row(row):
+    protein_id = row[0] + row[1]
+    annotation = row[3].split(' ')
+    annotation = [int(i[1:]) for i in annotation]
+    sequence = row[4]
+
+    # load embeddings for this protein from all embedding spaces
+    these_embeddings = {}
+    length, have_same_length = 0, True
+    for i, (embeddings_name, embeddings_path) in enumerate(EMB_SPACES):
+        path = f"{embeddings_path}/{protein_id}.npy"
+        if not os.path.exists(path):
+            have_same_length = False
+            break
+        embedding = np.load(path)
+        these_embeddings[embeddings_name] = embedding
+        # check that all embedding spaces have the same length for this protein
+        if i == 0:
+            length = embedding.shape[0]
+        else:
+            if embedding.shape[0] != length:
+                have_same_length = False
+                break
+            
+    # check that all embedding spaces have the same length for this protein
+    if not have_same_length:
+        return None, None, None, None
+
+    return protein_id, annotation, sequence, these_embeddings
+
 def load_dataset_with_all_balanced_classes():
     import csv
     import os
@@ -219,38 +249,8 @@ def load_dataset_with_all_balanced_classes():
     import numpy as np
     from emmaemb.core import Emma
     sys.path.append('/home/unix/vkrhk/EmmaEmb/EmmaEmb/analysis')
-    from constants import DATA_PATH, EMBEDDINGS_PATH, IMG_OUTPUT_PATH, EMB_SPACES, CRYPTOBENCH_TRAIN_DATASET, SCPDB_DATASET
+    from constants import EMBEDDINGS_PATH, EMB_SPACES, CRYPTOBENCH_TRAIN_DATASET, SCPDB_DATASET
     import random
-
-    def load_row(row):
-        protein_id = row[0] + row[1]
-        annotation = row[3].split(' ')
-        annotation = [int(i[1:]) for i in annotation]
-        sequence = row[4]
-
-        # load embeddings for this protein from all embedding spaces
-        these_embeddings = {}
-        length, have_same_length = 0, True
-        for i, (embeddings_name, embeddings_path) in enumerate(EMB_SPACES):
-            path = f"{embeddings_path}/{protein_id}.npy"
-            if not os.path.exists(path):
-                have_same_length = False
-                break
-            embedding = np.load(path)
-            these_embeddings[embeddings_name] = embedding
-            # check that all embedding spaces have the same length for this protein
-            if i == 0:
-                length = embedding.shape[0]
-            else:
-                if embedding.shape[0] != length:
-                    have_same_length = False
-                    break
-                
-        # check that all embedding spaces have the same length for this protein
-        if not have_same_length:
-            return None, None, None, None
-
-        return protein_id, annotation, sequence, these_embeddings
 
     def shuffle_residues(length):
         randomly_ordered_residues = list(range(length))
