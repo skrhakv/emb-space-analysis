@@ -159,8 +159,9 @@ def plot_scatter1(embeddings, labels, x_idx, y_idx, emb_space, method, path=None
         plt.savefig(path)
     plt.show()
 
-def load_balanced_cryptic_and_regular_data(emb_space, datasets, data_path, protein_ids=None):
-    '''Balance number of cryptic residues and regular binding residues, but keep all non-binding residues.'''
+def load_balanced_cryptic_and_regular_data(emb_space, datasets, protein_ids=None):
+    '''Balance number of cryptic residues and regular binding residues, but keep all non-binding residues. 
+    Actually this is a huge technical dept and if protein_ids is None then there is no balancing'''
     (embeddings_name, embeddings_path) = emb_space
     
     embeddings = []
