@@ -1,36 +1,93 @@
-import csv
-import os
-import sys
-import pickle 
-import pandas as pd
 import numpy as np
 import argparse
-from dim_reduction_utils import load_balanced_cryptic_and_regular_data, load_dataset_with_all_balanced_classes
-from emmaemb.core import Emma
+from dim_reduction_utils import load_dataset_with_all_balanced_classes, load_balanced_cryptic_and_regular_data
 from emmaemb.vizualisation import get_knn_alignment_scores
-from constants import DATA_PATH, EMBEDDINGS_PATH, IMG_OUTPUT_PATH, EMB_SPACES, CRYPTOBENCH_TRAIN_DATASET, SCPDB_DATASET
+from constants import IMG_OUTPUT_PATH, EMB_SPACES, CRYPTOBENCH_TRAIN_DATASET, SCPDB_DATASET
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--metric', type=str, default='euclidean')
+parser.add_argument('--mean_centering', action='store_true')
+parser.add_argument('--imbalanced', action='store_true')
 args = parser.parse_args()
-
 
 METRIC = args.metric
 N_TREES = 100
-RANDOM_SHUFFLE = False
 K = [3, 5, 10, 50, 100, 200]
 
 emb_spaces = EMB_SPACES
 
 datasets = [CRYPTOBENCH_TRAIN_DATASET, SCPDB_DATASET]
 
-# with open(f'{DATA_PATH}/protein_ids.pkl', 'rb') as f:
-#     protein_ids = pickle.load(f)
+def run_imbalanced():
+    for emb_space in emb_spaces:
+        emb_space_name = emb_space[0]
+        print(f"Processing embedding space: {emb_space_name}")
+        emma = load_balanced_cryptic_and_regular_data(emb_space, datasets)
 
-# emma = load_balanced_cryptic_and_regular_data(emb_space, datasets, DATA_PATH, protein_ids=None)
-emma = load_dataset_with_all_balanced_classes()
-if RANDOM_SHUFFLE:
-    emma.metadata["binding_site"] = np.random.permutation(emma.metadata["binding_site"].to_numpy())
+        print(f"loaded dataset with {len(emma.metadata)} samples.")
+
+        if args.mean_centering:
+            print('Applying mean-centering to embedding spaces...')
+            mean_center(emma, emb_spaces=[emb_space_name])
+        print(f"Building Annoy index for embedding space: {emb_space_name} with metric: {METRIC} and n_trees: {N_TREES}")
+        emma.build_annoy_index(emb_space=emb_space_name, metric=METRIC, n_trees=N_TREES)
+        np.save(f'/media/drive2/vkrhk/annoy-ranks/{emb_space_name}_{METRIC}_{N_TREES}.npy', emma.emb[emb_space_name]["annoy_ranks"][METRIC][N_TREES])
+        for k in K:
+            print(f"\tCalculating k-NN alignment scores for k={k}...")
+            df = get_knn_alignment_scores(emma, feature='binding_site', k=k, metric=METRIC, use_annoy=True, n_trees=N_TREES, annoy_metric=METRIC)
+            heatmap_data = (
+                df.groupby(["Class", "Embedding"])["Fraction"]
+                .mean()
+                .unstack()  # Reshape to have Classes as rows and Embeddings as columns
+            )
+            class_counts = df.groupby("Class").size()
+            heatmap_data.index = [
+                f"{feature_class} (n = {int(count / len(df['Embedding'].unique()))})"
+                for feature_class, count in zip(
+                    heatmap_data.index, class_counts[heatmap_data.index]
+                )
+            ]
+            heatmap_data.to_csv(f'{IMG_OUTPUT_PATH}/knn-binding-sites/imbalanced/{METRIC}/k={k}{",mean_centered" if args.mean_centering else ""}{\
+                ".imbalanced" if args.imbalanced else ""}.csv')
+            
+def mean_center(emma, emb_spaces: list = None):
+    """Apply mean-centering to embedding spaces in-place.
+
+    Subtracts the per-dimension mean from each embedding space.
+    The original embeddings are preserved internally so the operation
+    can be reverted with revert_mean_centering().
+    Any cached pairwise distances, ranks, and 2-D projections are
+    cleared, since they were computed on the original embeddings.
+
+    Args:
+        emb_spaces (list, optional): Names of embedding spaces to centre.
+            Defaults to None, which centres all spaces.
+    """
+    targets = emb_spaces if emb_spaces is not None else list(emma.emb.keys())
+    for emb_space in targets:
+        emma._check_for_emb_space(emb_space)
+        if emma.emb[emb_space].get("_mean_centered", False):
+            print(f"'{emb_space}' is already mean-centred, skipping.")
+            continue
+        X = emma.emb[emb_space]["emb"]
+        emma.emb[emb_space]["_emb_original"] = X
+        emma.emb[emb_space]["emb"] = X - X.mean(axis=0)
+        emma.emb[emb_space]["_mean_centered"] = True
+        # Clear caches that depend on the raw embeddings
+        for key in ("pairwise_distances", "ranks", "annoy_index", "annoy_ranks", "2d"):
+            emma.emb[emb_space].pop(key, None)
+        print(f"'{emb_space}' mean-centred. Cached distances and projections cleared.")
+
+if args.imbalanced:
+    run_imbalanced()
+else:
+    emma = load_dataset_with_all_balanced_classes()
+
+if args.mean_centering:
+    print('Applying mean-centering to embedding spaces...')
+    mean_center(emma, emb_spaces=['ESM2', 'ANKH', 'ProstT5'])
+
 for embeddings_name, _ in emb_spaces:
     emma.build_annoy_index(emb_space=embeddings_name, metric=METRIC, n_trees=N_TREES)
 for k in K:
@@ -47,4 +104,5 @@ for k in K:
             heatmap_data.index, class_counts[heatmap_data.index]
         )
     ]
-    heatmap_data.to_csv(f'{IMG_OUTPUT_PATH}/knn-binding-sites/{METRIC}/k={k}.csv')
+    heatmap_data.to_csv(f'{IMG_OUTPUT_PATH}/knn-binding-sites/{METRIC}/k={k}{",mean_centered" if args.mean_centering else ""}{\
+        ".imbalanced" if args.imbalanced else ""}.csv')

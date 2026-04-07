@@ -362,3 +362,33 @@ def load_dataset_with_all_balanced_classes():
             emb_space_name=embeddings_name)
         
     return emma
+
+
+def load_imbalanced_dataset():
+    from constants import SCPDB_DATASET, CRYPTOBENCH_TRAIN_DATASET
+
+    feature_data = []
+    embeddings = {}
+    for dataset, binding_type in [(SCPDB_DATASET, 'BINDING'), (CRYPTOBENCH_TRAIN_DATASET, 'CRYPTIC-BINDING')]:
+        with open(dataset, 'r') as f:
+            reader = csv.reader(f, delimiter=';')
+            for row in reader:
+                protein_id, annotation, sequence, these_embeddings = load_row(row)
+                if protein_id is None:
+                    continue
+                for i in annotation:
+                    feature_data.append([sequence[i], binding_type])
+                for emb_space in these_embeddings.keys():
+                    if emb_space not in embeddings:
+                        embeddings[emb_space] = []
+                    embeddings[emb_space].append(these_embeddings[emb_space])
+    for emb_space in embeddings.keys():
+        embeddings[emb_space] = np.concatenate(embeddings[emb_space], axis=0)
+        np.save(f"{EMBEDDINGS_PATH}/concatenated-embeddings/{emb_space}_binding_site_embeddings.npy", embeddings[emb_space])
+    feature_data = pd.DataFrame.from_records(feature_data, columns=["amino acid", "binding_site"])
+    emma = Emma(feature_data=feature_data)
+    for embeddings_name, _ in EMB_SPACES:
+        emma.add_emb_space(
+            embeddings_source=f"{EMBEDDINGS_PATH}/concatenated-embeddings/{embeddings_name}_binding_site_embeddings.npy",
+            emb_space_name=embeddings_name)
+    return emma
