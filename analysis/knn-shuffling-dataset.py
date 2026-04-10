@@ -7,7 +7,7 @@ import numpy as np
 import argparse
 from sklearn.utils import shuffle
 sys.path.append('/home/unix/vkrhk/EmmaEmb/EmmaEmb/analysis')
-from dim_reduction_utils import load_balanced_cryptic_and_regular_data, load_dataset_with_all_balanced_classes
+from dim_reduction_utils import load_dataset_with_all_balanced_classes
 from emmaemb.core import Emma
 from emmaemb.vizualisation import get_knn_alignment_scores
 from constants import DATA_PATH, EMBEDDINGS_PATH, IMG_OUTPUT_PATH, EMB_SPACES, CRYPTOBENCH_TRAIN_DATASET, SCPDB_DATASET

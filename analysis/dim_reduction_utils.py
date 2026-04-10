@@ -159,7 +159,7 @@ def plot_scatter1(embeddings, labels, x_idx, y_idx, emb_space, method, path=None
         plt.savefig(path)
     plt.show()
 
-def load_balanced_cryptic_and_regular_data(emb_space, datasets, protein_ids=None):
+def load_imbalanced_cryptic_and_regular_data(emb_space, datasets, protein_ids=None):
     '''Balance number of cryptic residues and regular binding residues, but keep all non-binding residues. 
     Actually this is a huge technical dept and if protein_ids is None then there is no balancing'''
     (embeddings_name, embeddings_path) = emb_space
@@ -242,7 +242,7 @@ def load_row(row):
 
     return protein_id, annotation, sequence, these_embeddings
 
-def load_dataset_with_all_balanced_classes():
+def load_dataset_with_all_balanced_classes(load_train_subset=True):
     import csv
     import os
     import sys
@@ -250,7 +250,7 @@ def load_dataset_with_all_balanced_classes():
     import numpy as np
     from emmaemb.core import Emma
     sys.path.append('/home/unix/vkrhk/EmmaEmb/EmmaEmb/analysis')
-    from constants import EMBEDDINGS_PATH, EMB_SPACES, CRYPTOBENCH_TRAIN_DATASET, SCPDB_DATASET
+    from constants import EMBEDDINGS_PATH, EMB_SPACES, CRYPTOBENCH_TRAIN_DATASET, SCPDB_DATASET, CRYPTOBENCH_TEST_DATASET, LIGYSIS_DATASET
     import random
 
     def shuffle_residues(length):
@@ -277,8 +277,8 @@ def load_dataset_with_all_balanced_classes():
     number_of_cryptic_residues = 0
     number_of_non_binding_residues = 0
 
-    # with open(CRYPTOBENCH_TEST_DATASET, 'r') as f:
-    with open(CRYPTOBENCH_TRAIN_DATASET, 'r') as f:
+    datapath = CRYPTOBENCH_TRAIN_DATASET if load_train_subset else CRYPTOBENCH_TEST_DATASET
+    with open(datapath, 'r') as f:
         reader = csv.reader(f, delimiter=';')
         for row in reader:
             protein_id, annotation, sequence, these_embeddings = load_row(row)
@@ -310,8 +310,8 @@ def load_dataset_with_all_balanced_classes():
 
     number_of_regular_binding_residues = 0
 
-    # with open(LIGYSIS_DATASET, 'r') as f:
-    with open(SCPDB_DATASET, 'r') as f:
+    datapath = SCPDB_DATASET if load_train_subset else LIGYSIS_DATASET
+    with open(datapath, 'r') as f:
         reader = csv.reader(f, delimiter=';')
         for row in reader:
             if number_of_regular_binding_residues >= number_of_cryptic_residues:
