@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 import argparse
-from dim_reduction_utils import load_dataset_with_all_balanced_classes, load_imbalanced_cryptic_and_regular_data
+from dim_reduction_utils import load_dataset_with_all_balanced_classes, load_imbalanced_cryptic_and_regular_data, mean_center
 from emmaemb.vizualisation import get_knn_alignment_scores
 from constants import IMG_OUTPUT_PATH, EMB_SPACES, CRYPTOBENCH_TRAIN_DATASET, SCPDB_DATASET
 
@@ -71,33 +71,9 @@ def run_imbalanced():
             ]
             heatmap_data.to_csv(f'{IMG_OUTPUT_PATH}/knn-binding-sites/imbalanced/{METRIC}/{emb_space_name},k={k}{",mean_centered" if args.mean_centering else ""}.csv')
             
-def mean_center(emma, emb_spaces: list = None):
-    """Apply mean-centering to embedding spaces in-place.
-
-    Subtracts the per-dimension mean from each embedding space.
-    The original embeddings are preserved internally so the operation
-    can be reverted with revert_mean_centering().
-    Any cached pairwise distances, ranks, and 2-D projections are
-    cleared, since they were computed on the original embeddings.
-
-    Args:
-        emb_spaces (list, optional): Names of embedding spaces to centre.
-            Defaults to None, which centres all spaces.
-    """
-    targets = emb_spaces if emb_spaces is not None else list(emma.emb.keys())
-    for emb_space in targets:
-        emma._check_for_emb_space(emb_space)
-        if emma.emb[emb_space].get("_mean_centered", False):
-            print(f"'{emb_space}' is already mean-centred, skipping.")
-            continue
-        X = emma.emb[emb_space]["emb"]
-        emma.emb[emb_space]["_emb_original"] = X
-        emma.emb[emb_space]["emb"] = X - X.mean(axis=0)
-        emma.emb[emb_space]["_mean_centered"] = True
-        # Clear caches that depend on the raw embeddings
-        for key in ("pairwise_distances", "ranks", "annoy_index", "annoy_ranks", "2d"):
-            emma.emb[emb_space].pop(key, None)
-        print(f"'{emb_space}' mean-centred. Cached distances and projections cleared.")
+print(f"Using distance metric: {METRIC}")
+print(f"Using mean-centering: {args.mean_centering}")
+print(f"Using imbalanced dataset: {args.imbalanced}")
 
 if args.imbalanced:
     run_imbalanced()

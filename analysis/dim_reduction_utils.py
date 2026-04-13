@@ -392,3 +392,32 @@ def load_imbalanced_dataset():
             embeddings_source=f"{EMBEDDINGS_PATH}/concatenated-embeddings/{embeddings_name}_binding_site_embeddings.npy",
             emb_space_name=embeddings_name)
     return emma
+
+
+def mean_center(emma, emb_spaces: list = None):
+    """Apply mean-centering to embedding spaces in-place.
+
+    Subtracts the per-dimension mean from each embedding space.
+    The original embeddings are preserved internally so the operation
+    can be reverted with revert_mean_centering().
+    Any cached pairwise distances, ranks, and 2-D projections are
+    cleared, since they were computed on the original embeddings.
+
+    Args:
+        emb_spaces (list, optional): Names of embedding spaces to centre.
+            Defaults to None, which centres all spaces.
+    """
+    targets = emb_spaces if emb_spaces is not None else list(emma.emb.keys())
+    for emb_space in targets:
+        emma._check_for_emb_space(emb_space)
+        if emma.emb[emb_space].get("_mean_centered", False):
+            print(f"'{emb_space}' is already mean-centred, skipping.")
+            continue
+        X = emma.emb[emb_space]["emb"]
+        emma.emb[emb_space]["_emb_original"] = X
+        emma.emb[emb_space]["emb"] = X - X.mean(axis=0)
+        emma.emb[emb_space]["_mean_centered"] = True
+        # Clear caches that depend on the raw embeddings
+        for key in ("pairwise_distances", "ranks", "annoy_index", "annoy_ranks", "2d"):
+            emma.emb[emb_space].pop(key, None)
+        print(f"'{emb_space}' mean-centred. Cached distances and projections cleared.")
