@@ -3,7 +3,6 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.metrics import silhouette_score
 from emmaemb.core import Emma
 from constants import EMBEDDINGS_PATH, EMB_SPACES
 
@@ -61,6 +60,7 @@ def plot_kde(ax, x, y, cmap, label):
     ax.plot([], [], color=cmap, label=label)
 
 def get_silhouette_score(embeddings, labels):
+    from sklearn.metrics import silhouette_score
     score = silhouette_score(embeddings, labels)
     return score
 

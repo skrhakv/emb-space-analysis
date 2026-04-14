@@ -34,7 +34,7 @@ def _nice_round(x):
 #: Consistent model colours across all figures
 MODEL_COLORS = {
     "ProtT5":  "#0F8B8D",
-    "ANKH":    "#EC9A29",
+    "Ankh":    "#EC9A29",
     "ESM2":    "#A8201A",
     "ProstT5": "#00008B",
 }
@@ -145,7 +145,6 @@ def plot_model_ranking(
                 text=[ml_text_fmt.format(val)],
                 textposition="outside",
                 textfont=dict(size=20, color="black", family="Arial"),
-                cliponaxis=False
             ),
             row=1, col=2,
         )
@@ -207,7 +206,6 @@ def plot_model_ranking(
         print(f"Saved {output_path}")
 
     return fig
-
 
 # ---------------------------------------------------------------------------
 # 2. Per-class ML metric vs mean KNN alignment score (bubble scatter)
