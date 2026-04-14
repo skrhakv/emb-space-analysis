@@ -242,7 +242,7 @@ def load_row(row):
 
     return protein_id, annotation, sequence, these_embeddings
 
-def load_dataset_with_all_balanced_classes(load_train_subset=True):
+def load_dataset_with_all_balanced_classes(load_train_subset=True, get_protein_stats=False):
     import csv
     import os
     import sys
@@ -279,6 +279,7 @@ def load_dataset_with_all_balanced_classes(load_train_subset=True):
 
     datapath = CRYPTOBENCH_TRAIN_DATASET if load_train_subset else CRYPTOBENCH_TEST_DATASET
     with open(datapath, 'r') as f:
+        number_of_proteins = 0
         reader = csv.reader(f, delimiter=';')
         for row in reader:
             protein_id, annotation, sequence, these_embeddings = load_row(row)
@@ -300,9 +301,9 @@ def load_dataset_with_all_balanced_classes(load_train_subset=True):
                 number_of_non_binding_residues += 1
 
             add_protein_id(protein_id, protein_ids, 'CRYPTIC')
-
             get_embeddings(embeddings, these_embeddings, embedding_indices)
-
+            number_of_proteins += 1
+    print(f'Number of Cryptic proteins: {number_of_proteins}')   
     # import pickle
     # this is a list of scPDB protein ids that have seq similarity > 10 % with the LIGYSIS dataset
     # with open('/home/unix/vkrhk/EmmaEmb/data/banned_protein_ids.pkl', 'rb') as f:
@@ -313,6 +314,7 @@ def load_dataset_with_all_balanced_classes(load_train_subset=True):
     datapath = SCPDB_DATASET if load_train_subset else LIGYSIS_DATASET
     with open(datapath, 'r') as f:
         reader = csv.reader(f, delimiter=';')
+        number_of_proteins = 0
         for row in reader:
             if number_of_regular_binding_residues >= number_of_cryptic_residues:
                 break
@@ -346,6 +348,8 @@ def load_dataset_with_all_balanced_classes(load_train_subset=True):
 
             add_protein_id(protein_id, protein_ids, 'REGULAR')
             get_embeddings(embeddings, these_embeddings, embedding_indices)
+            number_of_proteins += 1
+    print(f'Number of regular proteins: {number_of_proteins}')   
 
     for embeddings_name in embeddings:
         concatenated_embeddings_path = f"{EMBEDDINGS_PATH}/concatenated-embeddings/{embeddings_name}_binding_site_embeddings.npy"
