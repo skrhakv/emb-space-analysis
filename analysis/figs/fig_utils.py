@@ -243,7 +243,7 @@ def plot_metric_vs_knn(
     y_title : str
         Y-axis label.
     color : str
-        Bubble fill colour.  Defaults to TEAL_MID.
+        Bubble fill color.  Defaults to TEAL_MID.
     label_col : str
         Column with short class labels shown on the plot.
     size_col : str
@@ -393,9 +393,10 @@ def plot_metric_vs_knn(
     )
 
     # --- Custom size legend drawn as shapes in the top margin ---
-    # px.scatter uses sizemode="area": rendered pixel radius = sqrt(n / sizeref).
-    # We draw circles of that exact radius in paper coordinates so they visually
-    # match the corresponding scatter bubbles — bypassing plotly's legend icon clipping.
+    # Use xsizemode/ysizemode="pixel" so the bounding box is specified as
+    # pixel offsets from an anchor in paper coordinates.  This gives a
+    # perfectly round 2r × 2r pixel bounding box regardless of the figure's
+    # aspect ratio or Plotly's internal margin adjustments.
     n_max_val = int(df[size_col].max())
     legend_n_vals = [max(_nice_round(n_max_val // 4), 1),
                      max(_nice_round(n_max_val // 2), 1),
@@ -415,19 +416,22 @@ def plot_metric_vs_knn(
         x_cur += 2 * r_px + _label_gap_px + _label_w_px + _between_px
 
     for cx, r_px, n_val in zip(cx_list, legend_radii_px, legend_n_vals):
-        r_x = r_px / plot_w_px
-        r_y = r_px / plot_h_px
+        # xsizemode/ysizemode="pixel": x0/x1 and y0/y1 are pixel offsets from
+        # the anchor point (cx, y_c) in paper coordinates → always a square
+        # bounding box → always a round circle.
         fig.add_shape(
             type="circle",
             xref="paper", yref="paper",
-            x0=cx - r_x, x1=cx + r_x,
-            y0=y_c - r_y,  y1=y_c + r_y,
+            xsizemode="pixel", ysizemode="pixel",
+            xanchor=cx, yanchor=y_c,
+            x0=-r_px, x1=r_px,
+            y0=-r_px, y1=r_px,
             fillcolor=color,
             line=dict(color="black", width=1.5),
         )
         fig.add_annotation(
             xref="paper", yref="paper",
-            x=cx + r_x + _label_gap_px / plot_w_px,
+            x=cx + r_px / plot_w_px + _label_gap_px / plot_w_px,
             y=y_c,
             text=f"n = {n_val:,}",
             showarrow=False,
@@ -442,7 +446,6 @@ def plot_metric_vs_knn(
         print(f"Saved {output_path}")
 
     return fig
-
 
 # ---------------------------------------------------------------------------
 # 3. KNN neighborhood ranking heatmap with ML misclassification overlay
