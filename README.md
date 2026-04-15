@@ -3,20 +3,16 @@ This repository contains supporting code for the [EmmaEmb](https://github.com/br
 
 ## Overview
 This project provides tools for analyzing protein language model (pLM) embeddings using the following datasets:
-
 - [CryptoBench](https://osf.io/pz4a9/overview): Utilized for cryptic binding site annotations.
-
 - [scPDB-enhanced](https://zenodo.org/records/18271517): Utilized for regular binding site annotations.
 
 
 The analysis specifically focuses on:
-
 - kNN Scoring: Calculating k-Nearest Neighbor scores within the embedding space.
-
 - Classification: Training Multi-Layer Perceptron (MLP) classifiers for multi-class ligand binding site datasets.
-
 - Visualizations: Generating the manuscript's figures and Plotly visualizations.
-    
+
+The training data together with trained model can be [downloaded from this link](https://s3.cl4.du.cesnet.cz/a93fcece52e6da0dd335b4459d47b0aebb74836b:share/emmaemb.classifier-data.tar.gz).
 ## Structure
 - `src`: Scripts for kNN calculations and MLP training.
 - `src/figs`: Scripts for generating manuscript visualizations.
