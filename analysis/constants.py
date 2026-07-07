@@ -13,3 +13,10 @@ CRYPTOBENCH_TRAIN_DATASET = f'{DATA_PATH}/train.txt'
 CRYPTOBENCH_TEST_DATASET = f'{DATA_PATH}/test.txt'
 SCPDB_DATASET = f'{DATA_PATH}/scPDB_filtered.csv'
 LIGYSIS_DATASET = f'{DATA_PATH}/ligysis_for_residue_level_evaluation.csv'
+
+
+### VAL DATASETS
+CRYPTOBENCH_VALTRAIN_DATASET = f'{DATA_PATH}/validation/train.txt'
+CRYPTOBENCH_VAL_DATASET = f'{DATA_PATH}/validation/val.txt'
+SCPDB_VALTRAIN_DATASET = f'{DATA_PATH}/validation/scPDB_filtered.csv'
+SCPDB_VAL_DATASET = f'{DATA_PATH}/validation/scPDB_filtered_val.csv'
